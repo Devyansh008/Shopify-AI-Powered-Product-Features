@@ -217,3 +217,56 @@ npm run dev
 The application will be accessible at [http://localhost:3000](http://localhost:3000).
 The API endpoint is available at [http://localhost:3000/api/metrics](http://localhost:3000/api/metrics).
 
+---
+
+## 7. Development Notes & AI Implementation
+
+### Prompt Excerpt
+The implementation was guided by the following AI developer prompt requirements:
+
+> **Role & Context:** Act as a senior full-stack engineer. Build the foundation for an AI-powered Shopify merchant analytics dashboard allowing merchants to ask questions about store data and receive accurate answers with relevant charts.  
+> **Stack:** Next.js (App Router), React 19, TypeScript, Recharts, Vercel AI SDK, OpenRouter for LLM integration, GitHub for version control.  
+> **Mandatory Parameters:** Every metric function must accept an exact `startDate` and `endDate` parameter (`getSalesMetrics(startDate, endDate)`, `getProductMetrics(startDate, endDate)`, `getReturnMetrics(startDate, endDate)`, `getCustomerMetrics(startDate, endDate)`, `getChannelMetrics(startDate, endDate)`).  
+> **Rules:** Both dates must be explicitly supplied. Use the appropriate date field for filtering (`order_date` or `return_date`) based on query intent. Date ranges are inclusive. Do not independently interpret vague phrases like "last week" inside metric functions; resolve relative dates first using the date utility. Fixed reference date: October 27, 2025.
+
+### Key Implementation Decisions
+
+1. **Mandatory Explicit Date Parameters (`startDate`, `endDate`):**
+   - Every top-level metric function mandates both `startDate` and `endDate` parameters (in `YYYY-MM-DD` ISO format).
+   - If either parameter is missing or empty, an explicit error is thrown. This guarantees rigid parameter validation suitable for deterministic AI tool calling (e.g. via Vercel AI SDK).
+
+2. **Strict Inclusive Date Filtering:**
+   - Date range comparisons evaluate `dateStr >= range.startDate && dateStr <= range.endDate`.
+   - ISO `YYYY-MM-DD` strings are lexicographically sorted; string comparisons avoid UTC/local timezone serialization drift across server and client runtimes.
+
+3. **Separation of Date Interpretation from Metric Calculations:**
+   - Metric functions perform pure aggregation over concrete date intervals.
+   - Natural language and relative temporal terms (`today`, `yesterday`, `thisWeek`, `lastWeek`, `thisMonth`, `lastMonth`) are resolved beforehand via `getPredefinedDateRange()` in `src/utils/date.ts`. Metric functions contain no NLP or calendar-shifting logic.
+
+4. **Dual Return Date Intent (`return_date` vs. `order_date`):**
+   - **General Return Activity (`dateField = 'returnDate'`):** Used when querying returns that occurred within a given period (e.g., returns processed during October 2025). Order `#2214` is included here because it was returned on October 6, 2025, even though purchased on September 24.
+   - **Order Cohort Returns (`dateField = 'orderDate'`):** Used when querying orders placed in a given period that were subsequently returned. Order `#2214` is excluded because its purchase date was in September.
+
+5. **Fixed Reference Date (October 27, 2025):**
+   - Anchors all relative windows:
+     - *Today:* `2025-10-27`
+     - *Yesterday:* `2025-10-26`
+     - *This Week:* `2025-10-27` (Monday, capped at reference date)
+     - *Last Week:* `2025-10-20` to `2025-10-26` (Monday–Sunday)
+     - *This Month:* `2025-10-01` to `2025-10-27`
+     - *Last Month:* `2025-09-01` to `2025-09-30`
+   - Future date safety: `normalizeDateRange()` automatically caps any user-supplied `endDate` exceeding `2025-10-27`.
+
+### Changed & Rejected Approaches
+
+- **Changed (Top-Level Function Signatures):**
+  - *Initial approach:* Lower-level calculation functions took an optional `OrderLineItem[]` array without date arguments (e.g., `calculateSalesPerformance(items)`).
+  - *Refactoring:* Wrapped into mandatory entry points (`getSalesMetrics(startDate, endDate, items?)`, `getProductMetrics(...)`, etc.) that enforce explicit date bounds, ensuring consistent tool interfaces for LLMs.
+- **Changed (Gross Sales and Discounts Verification):**
+  - *Initial assertion:* An early test assumed gross sales of $3,194.00 and discounts of $95.65.
+  - *Correction:* Real CSV verification revealed order `#2758` (line 20) had a quantity of 2 with a $23.60 discount, resulting in actual dataset gross sales of $3,216.00 and discounts of $117.65. Test assertions were updated to match the real CSV data.
+- **Rejected (Embedding Relative Date Parsing inside Metric Modules):**
+  - *Rejected:* Allowing metric functions to accept string shortcuts like `getSalesMetrics('lastWeek')`.
+  - *Reason:* Rejected to prevent tight coupling between calendar resolution and metric math, ensuring that downstream AI agent tools must pass validated date ranges.
+
+
