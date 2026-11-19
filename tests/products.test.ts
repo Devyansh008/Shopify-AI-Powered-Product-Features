@@ -88,3 +88,4 @@ describe('Metric Module 2: Best-Selling Products', () => {
     expect(result.categoryPerformance).toEqual([]);
   });
 });
+

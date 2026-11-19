@@ -69,3 +69,4 @@ describe('Metric Module 4: Repeat Customer Performance', () => {
     expect(metrics.customerBreakdown).toEqual([]);
   });
 });
+

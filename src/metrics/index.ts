@@ -12,15 +12,15 @@ export * from './channels';
 import { DashboardMetrics, DateRange } from '../types/metrics';
 import { OrderLineItem } from '../types/order';
 import { DEFAULT_REFERENCE_DATE, filterOrdersByDateRange } from '../utils/date';
-import { calculateSalesPerformance } from './sales';
-import { calculateBestSellingProducts } from './products';
-import { calculateReturnMetrics } from './returns';
-import { calculateRepeatCustomerMetrics } from './customers';
-import { calculateSalesChannelMetrics } from './channels';
+import { calculateSalesPerformance, getSalesMetrics } from './sales';
+import { calculateBestSellingProducts, getProductMetrics } from './products';
+import { calculateReturnMetrics, getReturnMetrics } from './returns';
+import { calculateRepeatCustomerMetrics, getCustomerMetrics } from './customers';
+import { calculateSalesChannelMetrics, getChannelMetrics } from './channels';
 
 /**
  * Computes all five core metric categories.
- * Optionally filters by date range before computing.
+ * If dateRange is supplied, delegates through exact startDate & endDate boundaries.
  */
 export function computeDashboardMetrics(
   items: OrderLineItem[],
@@ -31,17 +31,28 @@ export function computeDashboardMetrics(
   }
 ): DashboardMetrics {
   const referenceDate = options?.referenceDate || DEFAULT_REFERENCE_DATE;
-  const filteredItems = options?.dateRange
-    ? filterOrdersByDateRange(items, options.dateRange, 'orderDate', referenceDate)
-    : items;
+
+  if (options?.dateRange) {
+    const { startDate, endDate } = options.dateRange;
+    return {
+      referenceDate,
+      dateRangeApplied: options.dateRange,
+      sales: getSalesMetrics(startDate, endDate, items),
+      products: getProductMetrics(startDate, endDate, items, options?.topNProducts ?? 5),
+      returns: getReturnMetrics(startDate, endDate, items),
+      repeatCustomers: getCustomerMetrics(startDate, endDate, items),
+      salesChannels: getChannelMetrics(startDate, endDate, items),
+    };
+  }
 
   return {
     referenceDate,
     dateRangeApplied: options?.dateRange,
-    sales: calculateSalesPerformance(filteredItems),
-    products: calculateBestSellingProducts(filteredItems, options?.topNProducts ?? 5),
-    returns: calculateReturnMetrics(filteredItems),
-    repeatCustomers: calculateRepeatCustomerMetrics(filteredItems),
-    salesChannels: calculateSalesChannelMetrics(filteredItems),
+    sales: calculateSalesPerformance(items),
+    products: calculateBestSellingProducts(items, options?.topNProducts ?? 5),
+    returns: calculateReturnMetrics(items),
+    repeatCustomers: calculateRepeatCustomerMetrics(items),
+    salesChannels: calculateSalesChannelMetrics(items),
   };
 }
+

@@ -34,3 +34,4 @@ export function safePercentage(
   const result = safeDivide(numerator, denominator, 0) * 100;
   return round(result, decimals);
 }
+

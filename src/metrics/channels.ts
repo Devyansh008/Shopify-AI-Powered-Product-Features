@@ -14,6 +14,8 @@ import { ChannelMetric, SalesChannelMetrics } from '../types/metrics';
 import { OrderLineItem, SalesChannel } from '../types/order';
 import { round, safeDivide, safePercentage } from '../utils/math';
 import { calculateTotalSales } from './sales';
+import { filterOrdersByDateRange } from '../utils/date';
+import { getOrderItems } from '../data/loader';
 
 /**
  * Aggregates performance by sales channel.
@@ -98,3 +100,22 @@ export function calculateSalesChannelMetrics(items: OrderLineItem[]): SalesChann
     bestPerformingChannelByOrders,
   };
 }
+
+/**
+ * Mandatory top-level metric function.
+ * Evaluates sales channel performance within an exact, inclusive [startDate, endDate] window.
+ * Filters on `orderDate`.
+ */
+export function getChannelMetrics(
+  startDate: string,
+  endDate: string,
+  items: OrderLineItem[] = getOrderItems()
+): SalesChannelMetrics {
+  if (!startDate || !endDate) {
+    throw new Error('getChannelMetrics requires both startDate and endDate to be explicitly supplied.');
+  }
+
+  const filtered = filterOrdersByDateRange(items, { startDate, endDate }, 'orderDate');
+  return calculateSalesChannelMetrics(filtered);
+}
+

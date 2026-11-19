@@ -14,6 +14,8 @@ import { CustomerSummary, RepeatCustomerMetrics } from '../types/metrics';
 import { OrderLineItem } from '../types/order';
 import { round, safePercentage } from '../utils/math';
 import { calculateTotalSales } from './sales';
+import { filterOrdersByDateRange } from '../utils/date';
+import { getOrderItems } from '../data/loader';
 
 /**
  * Returns the count of distinct customer IDs.
@@ -131,3 +133,22 @@ export function calculateRepeatCustomerMetrics(items: OrderLineItem[]): RepeatCu
     customerBreakdown,
   };
 }
+
+/**
+ * Mandatory top-level metric function.
+ * Evaluates repeat customer performance within an exact, inclusive [startDate, endDate] window.
+ * Filters on `orderDate`.
+ */
+export function getCustomerMetrics(
+  startDate: string,
+  endDate: string,
+  items: OrderLineItem[] = getOrderItems()
+): RepeatCustomerMetrics {
+  if (!startDate || !endDate) {
+    throw new Error('getCustomerMetrics requires both startDate and endDate to be explicitly supplied.');
+  }
+
+  const filtered = filterOrdersByDateRange(items, { startDate, endDate }, 'orderDate');
+  return calculateRepeatCustomerMetrics(filtered);
+}
+

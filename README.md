@@ -90,6 +90,28 @@ All relative date queries are evaluated against a **fixed reference date: Octobe
 
 ## 4. The Five Metric Categories & Formulas
 
+### Mandatory Function Signatures
+Every metric category exposes a top-level function that **mandates explicit `startDate` and `endDate` parameters**:
+
+```typescript
+getSalesMetrics(startDate: string, endDate: string, items?: OrderLineItem[]): SalesPerformanceMetrics
+getProductMetrics(startDate: string, endDate: string, items?: OrderLineItem[], topN?: number): BestSellingProductsMetrics
+getReturnMetrics(startDate: string, endDate: string, items?: OrderLineItem[], dateField?: 'returnDate' | 'orderDate'): ReturnMetrics
+getCustomerMetrics(startDate: string, endDate: string, items?: OrderLineItem[]): RepeatCustomerMetrics
+getChannelMetrics(startDate: string, endDate: string, items?: OrderLineItem[]): SalesChannelMetrics
+```
+
+Relative date expressions (e.g., "last week", "today", "this month") are **never interpreted directly inside metric functions**. Instead, caller code or AI tools resolve them first into exact date strings via `getPredefinedDateRange('lastWeek')`, preserving strict separation between date interpretation and metric computation:
+
+```typescript
+// Example: Resolving "last week" before querying
+const { startDate, endDate } = getPredefinedDateRange('lastWeek');
+const sales = getSalesMetrics(startDate, endDate);
+const returns = getReturnMetrics(startDate, endDate, undefined, 'returnDate');
+```
+
+---
+
 ### 1. Sales Performance (`src/metrics/sales.ts`)
 - **Total Sales:** $\sum \text{line\_total} = \$3,098.35$
 - **Gross Sales:** $\sum (\text{quantity} \times \text{unit\_price}) = \$3,216.00$
@@ -194,3 +216,4 @@ npm run dev
 
 The application will be accessible at [http://localhost:3000](http://localhost:3000).
 The API endpoint is available at [http://localhost:3000/api/metrics](http://localhost:3000/api/metrics).
+

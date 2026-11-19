@@ -87,3 +87,4 @@ export interface ParseResult {
   validRowCount: number;
   invalidRowCount: number;
 }
+

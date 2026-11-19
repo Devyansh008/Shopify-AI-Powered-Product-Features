@@ -145,3 +145,4 @@ export interface DashboardMetrics {
   repeatCustomers: RepeatCustomerMetrics;
   salesChannels: SalesChannelMetrics;
 }
+

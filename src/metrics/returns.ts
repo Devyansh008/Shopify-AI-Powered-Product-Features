@@ -13,6 +13,8 @@ import { ReturnMetrics, ReturnReasonBreakdown, ReturnedProductSummary } from '..
 import { OrderLineItem } from '../types/order';
 import { round, safePercentage } from '../utils/math';
 import { calculateTotalOrders } from './sales';
+import { filterOrdersByDateRange } from '../utils/date';
+import { getOrderItems } from '../data/loader';
 
 /**
  * Returns all line items that were marked as returned.
@@ -169,3 +171,53 @@ export function calculateReturnMetrics(items: OrderLineItem[]): ReturnMetrics {
     returnReasonsBreakdown,
   };
 }
+
+/**
+ * Mandatory top-level metric function.
+ * Evaluates return and refund metrics within an exact, inclusive [startDate, endDate] window.
+ *
+ * Rules:
+ * - By default uses 'returnDate' for general return activity occurring within the window.
+ * - Set dateField = 'orderDate' when querying orders placed in this period that were subsequently returned.
+ */
+export function getReturnMetrics(
+  startDate: string,
+  endDate: string,
+  items: OrderLineItem[] = getOrderItems(),
+  dateField: 'returnDate' | 'orderDate' = 'returnDate'
+): ReturnMetrics {
+  if (!startDate || !endDate) {
+    throw new Error('getReturnMetrics requires both startDate and endDate to be explicitly supplied.');
+  }
+
+  if (dateField === 'orderDate') {
+    // Evaluates orders placed in period that were subsequently returned
+    const filtered = filterOrdersByDateRange(items, { startDate, endDate }, 'orderDate');
+    return calculateReturnMetrics(filtered);
+  }
+
+  // General return activity occurring during period (filtered by returnDate)
+  const returnedInPeriod = filterOrdersByDateRange(items, { startDate, endDate }, 'returnDate');
+  const ordersPlacedInPeriod = filterOrdersByDateRange(items, { startDate, endDate }, 'orderDate');
+  const baseOrderCount = calculateTotalOrders(ordersPlacedInPeriod);
+  const baseItemCount = ordersPlacedInPeriod.length;
+
+  const totalReturns = returnedInPeriod.length;
+  const returnedOrdersCount = calculateReturnedOrdersCount(returnedInPeriod);
+  const orderReturnRate = safePercentage(returnedOrdersCount, baseOrderCount, 2);
+  const itemReturnRate = safePercentage(totalReturns, baseItemCount, 2);
+  const totalRefundAmount = calculateTotalRefundAmount(returnedInPeriod);
+  const mostFrequentlyReturnedProducts = getMostFrequentlyReturnedProducts(returnedInPeriod);
+  const returnReasonsBreakdown = getReturnReasonsBreakdown(returnedInPeriod);
+
+  return {
+    totalReturns,
+    returnedOrdersCount,
+    orderReturnRate,
+    itemReturnRate,
+    totalRefundAmount,
+    mostFrequentlyReturnedProducts,
+    returnReasonsBreakdown,
+  };
+}
+

@@ -16,6 +16,8 @@ import {
 import { OrderLineItem, ProductCategory } from '../types/order';
 import { round, safePercentage } from '../utils/math';
 import { calculateTotalSales } from './sales';
+import { filterOrdersByDateRange } from '../utils/date';
+import { getOrderItems } from '../data/loader';
 
 /**
  * Returns products sorted by total revenue in descending order.
@@ -151,3 +153,23 @@ export function calculateBestSellingProducts(
     categoryPerformance: getCategoryPerformance(items),
   };
 }
+
+/**
+ * Mandatory top-level metric function.
+ * Evaluates best-selling products within an exact, inclusive [startDate, endDate] window.
+ * Filters on `orderDate`.
+ */
+export function getProductMetrics(
+  startDate: string,
+  endDate: string,
+  items: OrderLineItem[] = getOrderItems(),
+  topN: number = 5
+): BestSellingProductsMetrics {
+  if (!startDate || !endDate) {
+    throw new Error('getProductMetrics requires both startDate and endDate to be explicitly supplied.');
+  }
+
+  const filtered = filterOrdersByDateRange(items, { startDate, endDate }, 'orderDate');
+  return calculateBestSellingProducts(filtered, topN);
+}
+

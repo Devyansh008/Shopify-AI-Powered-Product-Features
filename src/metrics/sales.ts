@@ -15,6 +15,8 @@
 import { DailySalesPoint, MonthlySalesPoint, SalesPerformanceMetrics } from '../types/metrics';
 import { OrderLineItem } from '../types/order';
 import { round, safeDivide, safePercentage } from '../utils/math';
+import { filterOrdersByDateRange } from '../utils/date';
+import { getOrderItems } from '../data/loader';
 
 /**
  * Calculates total sales (net of item discounts, before refunds).
@@ -197,3 +199,22 @@ export function calculateSalesPerformance(items: OrderLineItem[]): SalesPerforma
     monthlySales,
   };
 }
+
+/**
+ * Mandatory top-level metric function.
+ * Evaluates sales performance within an exact, inclusive [startDate, endDate] window.
+ * Filters on `orderDate`.
+ */
+export function getSalesMetrics(
+  startDate: string,
+  endDate: string,
+  items: OrderLineItem[] = getOrderItems()
+): SalesPerformanceMetrics {
+  if (!startDate || !endDate) {
+    throw new Error('getSalesMetrics requires both startDate and endDate to be explicitly supplied.');
+  }
+
+  const filtered = filterOrdersByDateRange(items, { startDate, endDate }, 'orderDate');
+  return calculateSalesPerformance(filtered);
+}
+

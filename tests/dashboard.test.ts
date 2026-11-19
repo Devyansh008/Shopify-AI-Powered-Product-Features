@@ -41,3 +41,4 @@ describe('Dashboard Metrics Engine Integration', () => {
     expect(dashboard.sales.averageOrderValue).toBe(182.2);
   });
 });
+
